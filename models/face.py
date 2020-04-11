@@ -1,4 +1,4 @@
-from models.point import Point
+from models.vector import Vector
 from models.boundingBox import BoundingBox
 
 import cv2 as cv
@@ -6,7 +6,7 @@ import numpy as np
 
 
 class Face:
-    def __init__(self, boundingBox: BoundingBox, leftEye: Point, rightEye: Point, nose: Point):
+    def __init__(self, boundingBox: BoundingBox, leftEye: Vector, rightEye: Vector, nose: Vector):
         self.boundingBox = boundingBox
         self.leftEye = leftEye
         self.rightEye = rightEye

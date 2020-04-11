@@ -1,72 +1,42 @@
 #!/usr/local/bin/python3
 import cv2 as cv
-import numpy as np
-from sklearn.cluster import DBSCAN
 
+from models.galleryDatabase import GalleryDatabase
 from modules.bodyEmbeddingGenerator import BodyEmbeddingGenerator
 from modules.faceDetector import FaceDetector
 from modules.faceEmbeddingGenerator import FaceEmbeddingGenerator
-from models.gallery import Gallery
-from models.galleryDatabase import GalleryDatabase
-from modules.bodyDetector import BodyDetector
+from modules.fasterBodyDetector import FasterBodyDetector
+from modules.maskBodyDetector import MaskBodyDetector
+from modules.yoloBodyDetector import YoloBodyDetector
+from utils.detectors import Detector
+from utils.imageUtils import drawBoundingBox, drawId, drawMask
 
 
 class PersonIdentifier():
     # Image processing constants
-    inputDim = (600, 600)
+    inputDim = (416, 416)
     presentationDim = (1200, 720)
     interpolationMethod = cv.INTER_AREA
-
-    # Bounding box constants
-    boundingBoxColor = (165, 214, 167)
-    boundingBoxBorderSize = 1
-
-    # Id text constants
-    font = cv.FONT_HERSHEY_SIMPLEX
-    fontSize = 0.5
-    fontColor = (0, 255, 0)
-    lineType = 2
-
-    # DBSCAN constants
-    epsilon = 1.5
-    minSamplesToCluster = 10
 
     # Window constants
     frameLabel = "Person identifier"
 
-    def __init__(self):
+    def __init__(self, detector = Detector.mask, detectionThreshold = 0.8, identificationThreshold = 1.5):
         self.faceDetector = FaceDetector()
         self.faceDescriptorGenerator = FaceEmbeddingGenerator()
         self.bodyEmbeddingGenerator = BodyEmbeddingGenerator()
-        self.galleryDatabase = GalleryDatabase()
-        self.clusteringSystem = DBSCAN(eps=self.epsilon, min_samples=self.minSamplesToCluster)
-        self.bodyDetector = BodyDetector()
+        self.galleryDatabase = GalleryDatabase(identificationThreshold=identificationThreshold)
+        self.detector = detector
+        self.bodyDetector = self.selectDetector(detector)
+        self.detectionThreshold = detectionThreshold
 
-    def identify(self, descriptor):
-        for key, gallery in self.galleryDatabase.database.items():
-            scan = DBSCAN(eps=self.epsilon,
-                          min_samples=min([max([1, len(gallery.descriptors)]), self.minSamplesToCluster]))
-            if scan.fit_predict(np.vstack((gallery.descriptors, descriptor)))[-1] != -1:
-                self.galleryDatabase.addToGallery(key, descriptor)
-                return key
-        return self.galleryDatabase.addNewGallery(Gallery(np.array([descriptor])))
-
-    def drawBoundingBox(self, frame, boundingBox):
-        cv.rectangle(frame,
-                     (boundingBox.origin.x, boundingBox.origin.y),
-                     (boundingBox.end.x, boundingBox.end.y),
-                     self.boundingBoxColor,
-                     self.boundingBoxBorderSize)
-        return frame
-
-    def drawId(self, frame, id, box):
-        return cv.putText(frame,
-                          "Id: %d" % id,
-                          (box.origin.x, box.origin.y - 16),
-                          self.font,
-                          self.fontSize,
-                          self.fontColor,
-                          self.lineType)
+    def selectDetector(self, detector):
+        return {
+            Detector.mask : MaskBodyDetector(),
+            Detector.faster : FasterBodyDetector(),
+            Detector.yolo : YoloBodyDetector(),
+            Detector.mtcnn : FaceDetector()
+        }.get(detector, MaskBodyDetector())
 
     def getAllAlignedFaces(self, frame):
         frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
@@ -82,27 +52,38 @@ class PersonIdentifier():
             return [faces.boundingBox.getImageFromBox(frame) for face in faces]
         return None
 
+    def identifyBodyInFrameWithMask(self, frame):
+        if type(self.bodyDetector) is MaskBodyDetector:
+            frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
+            boxes, masks = self.bodyDetector.getBoundingBoxesAndMasks(frame, threshold=self.detectionThreshold)
+            if boxes is not None:
+                for box, mask in zip(boxes, masks):
+                    frame = drawBoundingBox(frame, box)
+                    frame = drawMask(frame, mask)
+        return frame
+
     def identifyFaceInFrame(self, frame):
         frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
-        faces = self.faceDetector.getFaces(frame)
-        if faces is not None:
-            for face in faces:
-                faceImage = face.boundingBox.getImageFromBox(frame)
-                id = self.identify(self.faceDescriptorGenerator.getDescriptor(faceImage))
-                frame = self.drawBoundingBox(frame, face.boundingBox)
-                frame = self.drawId(frame, id, face)
-        return cv.resize(frame, self.presentationDim, interpolation=self.interpolationMethod)
-
-    def identifyBodyInFrame(self, frame):
-        #frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
-        boxes = self.bodyDetector.getBoundingBoxes(frame)
+        boxes = self.bodyDetector.getBoundingBoxes(frame, threshold=self.detectionThreshold)
         if boxes is not None:
             for box in boxes:
                 bodyImage = box.getImageFromBox(frame)
-                id = self.identify(self.bodyEmbeddingGenerator.getEmbedding(bodyImage))
-                frame = self.drawBoundingBox(frame, box)
-                frame = self.drawId(frame, id, box)
-        return frame #cv.resize(frame, self.presentationDim, interpolation=self.interpolationMethod)
+                id = self.galleryDatabase.getIdentity(self.bodyEmbeddingGenerator.getEmbedding(bodyImage))
+                frame = drawBoundingBox(frame, box)
+                frame = drawId(frame, id, box)
+        return frame
+
+    def identifyBodyInFrame(self, frame):
+        if self.detector == Detector.yolo:
+            frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
+        frame, boxes = self.bodyDetector.getBoundingBoxes(frame, threshold=self.detectionThreshold)
+        if boxes is not None:
+            for box in boxes:
+                bodyImage = box.getImageFromBox(frame)
+                id = self.galleryDatabase.getIdentity(self.bodyEmbeddingGenerator.getEmbedding(bodyImage))
+                frame = drawBoundingBox(frame, box)
+                frame = drawId(frame, id, box)
+        return cv.resize(frame, self.presentationDim, interpolation=self.interpolationMethod)
 
     def startIdentificationByVideo(self, videoPath):
         cap = cv.VideoCapture(videoPath)

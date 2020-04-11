@@ -1,7 +1,7 @@
 import cv2 as cv
 
 from mtcnn import MTCNN
-from models.point import Point
+from models.vector import Vector
 from models.face import Face
 from models.boundingBox import BoundingBox
 
@@ -19,27 +19,27 @@ class FaceDetector():
             return [
                 Face(
                     boundingBox=BoundingBox(
-                        origin=Point(
+                        origin=Vector(
                             int(face["box"][0]),
                             int(face["box"][1])
                         ),
-                        end=Point(
+                        end=Vector(
                             int(face["box"][0] + face["box"][2]),
                             int(face["box"][1] + face["box"][3])
                         ),
                     ),
 
-                    leftEye=Point(
+                    leftEye=Vector(
                         int(face["keypoints"]["left_eye"][0]),
                         int(face["keypoints"]["left_eye"][1])
                     ),
 
-                    rightEye=Point(
+                    rightEye=Vector(
                         int(face["keypoints"]["right_eye"][0]),
                         int(face["keypoints"]["right_eye"][1])
                     ),
 
-                    nose=Point(
+                    nose=Vector(
                         int(face["keypoints"]["nose"][0]),
                         int(face["keypoints"]["nose"][1])
                     )
