@@ -1,169 +1,377 @@
-import random as rand
-import numpy as np
-import cv2 as cv
-from sklearn.cluster import DBSCAN
-from pathlib import Path
+from os import path
 
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.spatial.distance import cdist
 
-from personIdentifier import PersonIdentifier
-from utils.persistanceUtils import persistEmbedding, getEmbeddingFromDisk
-
-
-def getSampleImages(personId=1, area=1, basePath="/Users/adrianlorenzomelian/dataset", numSamples=4):
-    return np.array([
-        cv.cvtColor(cv.imread("%s/%d/%d/%d.png" % (basePath, personId, area, i), 1), cv.COLOR_BGR2RGB)
-        for i in range(1, numSamples + 1)
-    ])
-
-def getBodies(identifier, images):
-    return [identifier.bodyDetector.getBoundingBoxes(image)[1][0]
-                .getImageFromBox(image) for image in images]
-
-def getEmbeddingsFromImages(identifier, bodies):
-    return np.array([
-        identifier.bodyEmbeddingGenerator.getEmbedding(body)
-        for body in bodies
-    ])
-
-def getDistanceClustering(firstArea, secondArea, epsilon = 1.8):
-    scan = DBSCAN(
-        eps=epsilon,
-        min_samples=4
-    )
-    array = scan.fit_predict(np.concatenate((firstArea, secondArea), axis = 0))
-    print(array)
-    return array
-
-def persistEmbeddingsToDisk(embeddings, personId=1, area=1, basePath="/Users/adrianlorenzomelian/embeddings"):
-    path = "%s/%d/%d" % (basePath, personId, area)
-    Path(path).mkdir(parents=True, exist_ok=True)
-    for index, embedding in enumerate(embeddings):
-        persistEmbedding("%s/%d.h5" % (path, index+1), embedding)
-
-def persistImagesToDisk(images, personId=1, area=1, basePath="/Users/adrianlorenzomelian/bodies"):
-    path = "%s/%d/%d" % (basePath, personId, area)
-    Path(path).mkdir(parents=True, exist_ok=True)
-    for index, image in enumerate(images):
-        cv.imwrite("%s/%d.png" % (path, index+1), image)
-
-def getEmbeddingsFromDisk(personId=1, area=1, basePath="/Users/adrianlorenzomelian/embeddings", numSamples=4):
-    return np.array([
-        getEmbeddingFromDisk(
-            "%s/%d/%d/%d.h5" % (basePath, personId, area, i)
-        )
-        for i in range(1, numSamples + 1)
-    ])
-
-def cmc(galleries):
-    embeddingCount = 0
-
-    matches = np.zeros(len(galleries))
-    for id, selectedGallery in enumerate(galleries):
-        for index in range(len(selectedGallery)):
-            gall = selectedGallery.copy()
-            embedding = np.delete(gall, index, 0)
-
-            distance = []
-            for gallId, gallery in enumerate(galleries):
-                dists = []
-                for i, gallEmbedding in enumerate(gallery):
-                    if i != index or gallId != id:
-                        dists.append(np.linalg.norm(embedding - gallEmbedding))
-                distance.append(
-                    [gallId, np.amin(dists)]
-                )
-
-            distance.sort(key = lambda v: v[1])
-            # Zero if no match 1 if match
-            for i in range(0, len(distance)):
-                if distance[i][0] == id:
-                    matches[i] += 1
-            embeddingCount += 1
-    results = np.cumsum(matches) / embeddingCount
-    return matches, results
-
-def cmc2(galleries, galleries2):
-    embeddingCount = 0
-
-    matches = np.zeros(len(galleries))
-    for id, selectedGallery in enumerate(galleries2):
-        for index in range(len(selectedGallery)):
-            gall = selectedGallery.copy()
-            embedding = np.delete(gall, index, 0)
-
-            distance = []
-            for gallId, gallery in enumerate(galleries):
-                dists = []
-                for i, gallEmbedding in enumerate(gallery):
-                        dists.append(np.linalg.norm(embedding - gallEmbedding))
-                print(dists)
-                distance.append(
-                    [gallId, np.amin(dists)]
-                )
-
-            distance.sort(key = lambda v: v[1])
-            print(distance)
-            # Zero if no match 1 if match
-            for i in range(0, len(distance)):
-                if distance[i][0] == id:
-                    print(distance[i][0], id, distance[i][1])
-                    matches[i] += 1
-            embeddingCount += 1
-    results = np.cumsum(matches) / embeddingCount
-    return matches, results
 
 def plotCMC(result, ids):
+    plt.figure(figsize=(9, 9))
     plt.plot(ids, result)
-    plt.yticks(np.arange(0, 1.20, 0.20))
+    plt.yticks(np.arange(0, 1.05, 0.05))
     plt.xticks(ids)
     plt.xlabel("Ranks")
     plt.ylabel("Probability")
     plt.title("CMC curve")
+    plt.grid()
     plt.show()
 
-def cmcTest():
-    galleries = [getEmbeddingsFromDisk(personId=i, area=1) for i in range(9, 23)]
-    ids = list(range(len(galleries)))
-    plotCMC(cmc(galleries)[1], ids)
+
+def cmcIds(gallery, query, topNum):
+    embeddingCount = 0
+    matches = np.zeros(topNum)
+
+    for id in query:
+        for embedding in query[id]:
+            distance = []
+            for gallId in gallery:
+                dists = []
+
+                for gallEmbedding in gallery[gallId]:
+                    dists.append(np.linalg.norm(embedding - gallEmbedding))
+
+                distance.append(
+                    [gallId, np.amin(dists)]
+                )
+
+            distance.sort(key=lambda v: v[1])
+
+            for i in range(0, topNum):
+                if distance[i][0] == id:
+                    matches[i] += 1
+                    break
+            embeddingCount += 1
+    results = np.cumsum(matches) / embeddingCount
+
+    return matches, results
+
+def cmc(gallery, query, topNum):
+    embeddingCount = 0
+
+    matches = np.zeros(topNum)
+
+    # Seleccionamos una de las galerías de la segunda área
+    for id, selectedGallery in enumerate(query):
+
+        # Seleccionamos de la galería un embedding
+        for index in range(len(selectedGallery)):
+            gall = selectedGallery.copy()
+
+            embedding = np.delete(gall, index, 0)
+
+            distance = []
+            # Se itera por las galerías de la primera área
+            for gallId in range(len(gallery)):
+                dists = []
+
+                # En este caso no hay que filtrar, ya que los embeddings siempre son diferentes.
+                for gallEmbedding in gallery[gallId]:
+                    # Calculamos la distancia entre el embedding de la consulta y el seleccionado.
+                    dists.append(np.linalg.norm(embedding - gallEmbedding))
+
+                # De cada identidad, seleccionamos el embedding de menor distancia
+                distance.append(
+                    [gallId, np.amin(dists)]
+                )
+
+            # Ordenamos las distancias de menor a mayor
+            distance.sort(key=lambda v: v[1])
+
+            # Iteramos en el ranking
+            for i in range(0, topNum):
+                # Si las dos identidades coinciden, ese es el rank obtenido. Aumentamos el contador.
+                if distance[i][0] == id:
+                    matches[i] += 1
+                    break
+            embeddingCount += 1
+    results = np.cumsum(matches) / embeddingCount
+    return matches, results
+
+def cmcOneGallery(gallery, topNum, windowEnd=10):
+    embeddingCount = 0
+    windowStart = 0
+
+    matches = np.zeros(topNum)
+    for id, selectedGallery in enumerate(gallery):
+
+        for index in range(len(selectedGallery)):
+            gall = selectedGallery.copy()
+
+            embedding = np.delete(gall, index, 0)
+
+            distance = []
+
+            for gallId in range(windowStart, min(windowStart + windowEnd, len(gallery))):
+                dists = []
+
+                for i, gallEmbedding in enumerate(gallery[gallId]):
+                    if i != index or gallId != id:
+                        dists.append(np.linalg.norm(embedding - gallEmbedding))
+
+                distance.append(
+                    [gallId, np.amin(dists)]
+                )
+
+            distance.sort(key=lambda v: v[1])
+
+            for i in range(0, topNum):
+                if distance[i][0] == id:
+                    if distance[i][0] > (windowStart + 3):
+                        windowStart += 1
+                    matches[i] += 1
+                    break
+            embeddingCount += 1
+
+    results = np.cumsum(matches) / embeddingCount
+    return matches, results
 
 
-def cmcTest2():
-    bodiesFirstArea = []
-    bodiesSecondArea = []
+def cmcTimeHeuristic(gallery, query, topNum, windowEnd=15):
+    embeddingCount = 0
+    windowStart = 0
 
-    for i in range(9, 19):
-        bodiesFirstArea.append(getEmbeddingsFromDisk(personId=i))
-        bodiesSecondArea.append(getEmbeddingsFromDisk(personId=i, area=2))
+    matches = np.zeros(topNum)
 
-    plotCMC(cmc2(bodiesFirstArea, bodiesSecondArea)[1], list(range(0, 10)))
+    # Seleccionamos una de las galerías de la segunda área
+    for id, selectedGallery in enumerate(query):
 
-def saveEmbeddingsDisk():
-    identifier = PersonIdentifier()
-    for i in range(100, 101):
-        bodies1 = getBodies(identifier, getSampleImages(personId=i, area=1))
-        persistImagesToDisk(bodies1, personId=i, area=1)
-        persistEmbeddingsToDisk(getEmbeddingsFromImages(identifier, bodies1), personId=i, area=1)
+        # Seleccionamos de la galería un embedding
+        for index in range(len(selectedGallery)):
+            gall = selectedGallery.copy()
 
-        bodies2 = getBodies(identifier, getSampleImages(personId=i, area=2))
-        persistImagesToDisk(bodies2, personId=i, area=2)
-        persistEmbeddingsToDisk(getEmbeddingsFromImages(identifier, bodies2), personId=i,area=2)
+            embedding = np.delete(gall, index, 0)
 
-def evaluateDifferentIdentityPairs(epsilon = 1.8):
-    indexes = list(range(9, 23))
+            distance = []
+            # Se itera por las galerías de la primera área
+            for gallId in range(windowStart, min(windowStart + windowEnd, len(gallery))):
+                dists = []
 
-    numClustered = []
-    while len(indexes) > 1:
-        firstId = indexes.pop(rand.randint(0, len(indexes)-1))
-        secondId = indexes.pop(rand.randint(0, len(indexes)-1))
-        result = getDistanceClustering(
-            getEmbeddingsFromDisk(personId=firstId, area=1),
-            getEmbeddingsFromDisk(personId=secondId, area=1),
-            epsilon=epsilon
-        )
-        numClustered.append((
-            np.count_nonzero(result == 0),
-            np.count_nonzero(result == 1)
-        ))
+                # En este caso no hay que filtrar, ya que los embeddings siempre son diferentes.
+                for i, gallEmbedding in enumerate(gallery[gallId]):
+                    # Calculamos la distancia entre el embedding de la consulta y el seleccionado.
+                    dists.append(np.linalg.norm(embedding - gallEmbedding))
 
-    return numClustered, 8
+                # De cada identidad, seleccionamos el embedding de menor distancia
+                distance.append(
+                    [gallId, np.amin(dists)]
+                )
+
+            # Ordenamos las distancias de menor a mayor
+            distance.sort(key=lambda v: v[1])
+
+            # Iteramos en el ranking
+            for i in range(0, topNum):
+                # Si las dos identidades coinciden, ese es el rank obtenido. Aumentamos el contador.
+                if distance[i][0] == id:
+                    if distance[i][0] > (windowStart + 3):
+                        windowStart += 1
+                    matches[i] += 1
+                    break
+            embeddingCount += 1
+    results = np.cumsum(matches) / embeddingCount
+    return matches, results
+
+
+def cmcTimespatialHeuristic(gallery, query, topNum, windowSize=12, fps=4):
+    embeddingCount = 0
+    seenDict = {}
+
+    matches = np.zeros(topNum)
+
+    identities = list(range(len(gallery)))
+    seen = []
+
+    # Seleccionamos una de las galerías de la segunda área
+    for id, selectedGallery in enumerate(query):
+
+        # Seleccionamos de la galería un embedding
+        for index in range(len(selectedGallery)):
+            gall = selectedGallery.copy()
+
+            embedding = np.delete(gall, index, 0)
+
+            distance = []
+
+            # REFERENCIADOS
+            for gallId in seen:
+                if seenDict[gallId] <= 0:
+                    continue
+
+                dists = []
+
+                # En este caso no hay que filtrar, ya que los embeddings siempre son diferentes.
+                for i, gallEmbedding in enumerate(gallery[gallId]):
+                    # Calculamos la distancia entre el embedding de la consulta y el seleccionado.
+                    dists.append(np.linalg.norm(embedding - gallEmbedding))
+
+                # De cada identidad, seleccionamos el embedding de menor distancia
+                distance.append(
+                    [gallId, np.amin(dists)]
+                )
+
+            window = 0
+
+            for gallId in identities:
+                dists = []
+
+                # En este caso no hay que filtrar, ya que los embeddings siempre son diferentes.
+                for i, gallEmbedding in enumerate(gallery[gallId]):
+                    # Calculamos la distancia entre el embedding de la consulta y el seleccionado.
+                    dists.append(np.linalg.norm(embedding - gallEmbedding))
+
+                # De cada identidad, seleccionamos el embedding de menor distancia
+                distance.append(
+                    [gallId, np.amin(dists)]
+                )
+
+                window += 1
+
+                if window >= windowSize:
+                    break
+
+            # Ordenamos las distancias de menor a mayor
+            distance.sort(key=lambda v: v[1])
+
+            if distance[0][0] in seen:
+                seenDict[distance[0][0]] = seenDict[distance[0][0]] + 10
+            else:
+                seenDict[distance[0][0]] = fps * 4
+                identities.remove(distance[0][0])
+                seen.append(distance[0][0])
+
+            for i in seen:
+                if i != distance[0][0]:
+                    seenDict[i] = max(seenDict[i] - 1, 0)
+
+            # Iteramos en el ranking
+            for i in range(0, min(topNum, len(distance))):
+                # Si las dos identidades coinciden, ese es el rank obtenido. Aumentamos el contador.
+                if distance[i][0] == id:
+                    matches[i] += 1
+                    break
+            embeddingCount += 1
+    results = np.cumsum(matches) / embeddingCount
+
+    return matches, results
+
+
+def cmcReranking(gallery, query, topNum, k1=5, k2=3, lambda_value=0.3):
+    final_dist = rerank(gallery, query, k1, k2, lambda_value)
+
+    ids = np.array([[i for _ in range(4)] for i in range(400)]).flatten()
+    embeddingCount = 0
+    matches = np.zeros(topNum)
+
+    for id, distances in zip(ids, final_dist):
+        dist = []
+        for id2, value in zip(ids, distances):
+            dist.append([id2, value])
+        dist.sort(key=lambda v: v[1])
+        for i in range(0, topNum):
+            if dist[i][0] == id:
+                matches[i] += 1
+                break
+        embeddingCount += 1
+    results = np.cumsum(matches) / embeddingCount
+
+    return matches, results
+
+
+def rerank(gallery, query, k1, k2, lambda_value):
+    gallery = np.array(gallery)
+    gallery = gallery.reshape(gallery.shape[0] * gallery.shape[1], -1)
+    query = np.array(query)
+    query = query.reshape(query.shape[0] * query.shape[1], -1)
+    query_num = query.shape[0]
+    all_num = query_num + gallery.shape[0]
+    feat = np.append(query, gallery, axis=0)
+    feat = feat.astype(np.float16)
+
+    original_dist = np.zeros(shape=[all_num, all_num], dtype=np.float16)
+    original_dist = cdist(feat, feat).astype(np.float16)
+    original_dist = np.power(original_dist, 2).astype(np.float16)
+    del feat
+
+    gallery_num = original_dist.shape[0]
+    original_dist = np.transpose(original_dist / np.max(original_dist, axis=0))
+    V = np.zeros_like(original_dist).astype(np.float16)
+    initial_rank = np.argsort(original_dist).astype(np.int32)
+
+    for i in range(all_num):
+        # k-reciprocal neighbors
+        forward_k_neigh_index = initial_rank[i, :k1 + 1]
+        backward_k_neigh_index = initial_rank[forward_k_neigh_index, :k1 + 1]
+        fi = np.where(backward_k_neigh_index == i)[0]
+        k_reciprocal_index = forward_k_neigh_index[fi]
+        k_reciprocal_expansion_index = k_reciprocal_index
+        for j in range(len(k_reciprocal_index)):
+            candidate = k_reciprocal_index[j]
+            candidate_forward_k_neigh_index = initial_rank[candidate, :int(np.around(k1 / 2)) + 1]
+            candidate_backward_k_neigh_index = initial_rank[candidate_forward_k_neigh_index,
+                                               :int(np.around(k1 / 2)) + 1]
+            fi_candidate = np.where(candidate_backward_k_neigh_index == candidate)[0]
+            candidate_k_reciprocal_index = candidate_forward_k_neigh_index[fi_candidate]
+            if len(np.intersect1d(candidate_k_reciprocal_index, k_reciprocal_index)) > 2 / 3 * len(
+                    candidate_k_reciprocal_index):
+                k_reciprocal_expansion_index = np.append(k_reciprocal_expansion_index, candidate_k_reciprocal_index)
+
+        k_reciprocal_expansion_index = np.unique(k_reciprocal_expansion_index)
+        weight = np.exp(-original_dist[i, k_reciprocal_expansion_index])
+        V[i, k_reciprocal_expansion_index] = weight / np.sum(weight)
+    original_dist = original_dist[:query_num, ]
+    if k2 != 1:
+        V_qe = np.zeros_like(V, dtype=np.float16)
+        for i in range(all_num):
+            V_qe[i, :] = np.mean(V[initial_rank[i, :k2], :], axis=0)
+        V = V_qe
+        del V_qe
+    del initial_rank
+    invIndex = []
+    for i in range(gallery_num):
+        invIndex.append(np.where(V[:, i] != 0)[0])
+    jaccard_dist = np.zeros_like(original_dist, dtype=np.float16)
+    for i in range(query_num):
+        temp_min = np.zeros(shape=[1, gallery_num], dtype=np.float16)
+        indNonZero = np.where(V[i, :] != 0)[0]
+        indImages = []
+        indImages = [invIndex[ind] for ind in indNonZero]
+        for j in range(len(indNonZero)):
+            temp_min[0, indImages[j]] = temp_min[0, indImages[j]] + np.minimum(V[i, indNonZero[j]],
+                                                                               V[indImages[j], indNonZero[j]])
+        jaccard_dist[i] = 1 - temp_min / (2 - temp_min)
+    final_dist = jaccard_dist * (1 - lambda_value) + original_dist * lambda_value
+    del original_dist
+    del V
+    del jaccard_dist
+    final_dist = final_dist[:query_num, query_num:]
+    return final_dist
+
+
+def getIds(fileName):
+    if not path.exists(fileName):
+        FileNotFoundError("Ids file not exists")
+
+    with open(fileName) as file:
+        return [int(line) for line in file]
+
+
+def plotAllLocationsCMC(alignedReIdDataset, abdDataset, galleryLocation, locations, saveLocation):
+    numIds = len(list(alignedReIdDataset[galleryLocation].keys()))
+    for location in locations:
+        if galleryLocation != location:
+            alignedReIdCmc = cmcIds(alignedReIdDataset[galleryLocation], alignedReIdDataset[location], numIds)[1]
+            abdCmc = cmcIds(abdDataset[galleryLocation], abdDataset[location], numIds)[1]
+
+            ranks = np.arange(0, numIds, 1)
+            plt.figure(figsize=(9, 9))
+            plt.plot(ranks, alignedReIdCmc)
+            plt.plot(ranks, abdCmc)
+
+            plt.yticks(np.arange(0, 1.05, 0.05))
+            plt.xticks(np.arange(0, numIds, 5))
+            plt.xlabel("Ranks")
+            plt.ylabel("Accuracy")
+            plt.title("CMC curve - %s as gallery, %s as query" % (galleryLocation, location))
+            plt.legend(['AlignedReId', 'ABD'])
+            plt.grid()
+            plt.savefig("%s/%s/cmc_%s_%s.png" % (saveLocation, galleryLocation, galleryLocation, location))

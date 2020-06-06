@@ -1,8 +1,8 @@
-from models.vector import Vector
-from models.boundingBox import BoundingBox
-
 import cv2 as cv
 import numpy as np
+
+from models.boundingBox import BoundingBox
+from models.vector import Vector
 
 
 class Face:
@@ -17,9 +17,9 @@ class Face:
         eyesCenter = self.leftEye.midpoint(self.rightEye)
         direction = self.boundingBox.origin.direction(self.boundingBox.end)
         xRotated = ((direction.x - self.boundingBox.origin.x) * np.cos(angle)) - (
-                    (self.boundingBox.origin.y - direction.y) * np.sin(angle)) + self.boundingBox.origin.x
+                (self.boundingBox.origin.y - direction.y) * np.sin(angle)) + self.boundingBox.origin.x
         yRotated = ((self.boundingBox.origin.y - direction.y) * np.cos(angle)) - (
-                    (direction.x - self.boundingBox.origin.x) * np.sin(angle)) + self.boundingBox.origin.y
+                (direction.x - self.boundingBox.origin.x) * np.sin(angle)) + self.boundingBox.origin.y
 
         rotationMatrix = cv.getRotationMatrix2D((eyesCenter.x, eyesCenter.y), angle, 1)
 

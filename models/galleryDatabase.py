@@ -1,22 +1,18 @@
 import numpy as np
-from sklearn.cluster import DBSCAN
 
 from models.gallery import Gallery
 
 
 class GalleryDatabase():
-    minSamplesToCluster = 10
-
-    def __init__(self, database={}, identificationThreshold=1.5):
+    def __init__(self, database={}, threshold=1.5):
         self.database = database
-        self.idCount = 0
-        self.epsilon = identificationThreshold
+        self.threshold = threshold
+        self.count = 0
 
     def addNewGallery(self, gallery):
-        id = self.idCount
-        self.database[id] = gallery
-        self.idCount += 1
-        return id
+        self.database[self.count] = gallery
+        self.count += 1
+        return self.count
 
     def addToGallery(self, id, descriptor):
         self.database[id].addDescriptor(descriptor)
@@ -24,20 +20,32 @@ class GalleryDatabase():
     def getAllGalleries(self):
         return self.database.values()
 
-    def getAllDescriptors(self):
-        return np.array([gallery.descriptors for gallery in self.getAllGalleries()]).flatten()
+    def getAllIds(self):
+        return list(self.database.keys())
 
     def clearDatabase(self):
         self.database = {}
 
     def getIdentity(self, descriptor):
-        for key, gallery in self.database.items():
-            scan = DBSCAN(
-                eps=self.epsilon,
-                min_samples=min(
-                    [max([1, len(gallery.descriptors)]), self.minSamplesToCluster])
+        distance = []
+        for gallId in self.database:
+            dists = []
+
+            for gallEmbedding in self.database[gallId].descriptors:
+                dists.append(np.linalg.norm(descriptor - gallEmbedding))
+
+            distance.append(
+                [gallId, np.amin(dists)]
             )
-            if scan.fit_predict(np.vstack([gallery.descriptors, descriptor]))[-1] != -1:
-                self.addToGallery(key, descriptor)
-                return key
-        return self.addNewGallery(Gallery(np.array([descriptor])))
+
+        if not distance:
+            return self.addNewGallery(Gallery([descriptor], maxDescriptors=20))
+
+        bestId, minDistance = min(distance, key=lambda v: v[1])
+
+        if minDistance < self.threshold:
+            print("Min distance: ", minDistance, " - Threshold: ", self.threshold)
+            self.addToGallery(bestId, descriptor)
+            return bestId
+        else:
+            return self.addNewGallery(Gallery([descriptor], maxDescriptors=20))

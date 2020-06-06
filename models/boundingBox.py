@@ -11,5 +11,6 @@ class BoundingBox:
                self.origin.y: self.end.y,
                self.origin.x: self.end.x
                ]
+
     def __str__(self):
         return "Origin: " + str(self.origin) + "- End: " + str(self.end)
