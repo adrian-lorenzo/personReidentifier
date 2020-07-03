@@ -9,10 +9,9 @@ import urllib
 
 import h5py
 import numpy as np
+from modules.alignreid.util.utils import mkdir_if_missing, write_json, read_json
 from scipy.io import loadmat
 from scipy.misc import imsave
-
-from modules.alignreid.util.utils import mkdir_if_missing, write_json, read_json
 
 """Image ReID"""
 

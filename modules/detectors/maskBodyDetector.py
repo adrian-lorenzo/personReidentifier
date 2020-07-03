@@ -18,15 +18,14 @@ class InferenceConfig(Config):
 
 
 class MaskBodyDetector(BodyDetector):
-    path = "../pretrained_models/mask_rcnn_coco/mask_rcnn_coco.h5"
-    logsDir = "../pretrained_models/mask_rcnn_coco/logs"
 
-    def __init__(self):
-        if not os.path.exists(self.path):
-            utils.download_trained_weights(self.path)
+    def __init__(self, weights="../pretrained_models/mask_rcnn_coco/mask_rcnn_coco.h5",
+                 modelConf="../pretrained_models/mask_rcnn_coco/logs"):
+        if not os.path.exists(weights):
+            utils.download_trained_weights(weights)
         config = InferenceConfig()
-        self.model = modellib.MaskRCNN(mode="inference", model_dir=self.logsDir, config=config)
-        self.model.load_weights(self.path, by_name=True)
+        self.model = modellib.MaskRCNN(mode="inference", model_dir=modelConf, config=config)
+        self.model.load_weights(weights, by_name=True)
 
     def preprocessImage(self, image):
         image = cv.normalize(image, image, 0, 255, cv.NORM_MINMAX)

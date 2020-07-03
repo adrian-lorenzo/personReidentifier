@@ -1,5 +1,3 @@
-import math
-
 import cv2 as cv
 import numpy as np
 from PIL import Image
@@ -15,7 +13,8 @@ fontSize = 0.5
 fontColor = (0, 255, 0)
 lineType = 2
 
-def getImages(personId=1, area=1, basePath="/Users/adrianlorenzomelian/dataset", numSamples=4):
+
+def getImagesDataset(personId=1, area=1, basePath="/Users/adrianlorenzomelian/dataset", numSamples=4):
     return np.array([
         cv.cvtColor(cv.imread("%s/%d/%d/%d.png" % (basePath, personId, area, i), 1), cv.COLOR_BGR2RGB)
         for i in range(1, numSamples + 1)
@@ -32,6 +31,14 @@ def deinterlaceImages(images, numpy=True):
         if numpy:
             image = np.array(image.resize(size))
         deinterlaced.append(np.array(image))
+    return deinterlaced
+
+
+def deinterlaceImagesDuplicate(images):
+    deinterlaced = []
+    for img in images:
+        img[1::2] = img[::2]
+        deinterlaced.append(img)
     return deinterlaced
 
 

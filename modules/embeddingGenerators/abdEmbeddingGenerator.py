@@ -19,29 +19,15 @@ os.environ['TORCH_HOME'] = os.path.abspath(os.path.join(os.path.dirname(__file__
 
 
 class AbdEmbeddingGenerator(BodyEmbeddingGenerator):
-    checkpointPath = "../pretrained_models/abd/market_checkpoint_best.pth.tar"
-
-    def get_criterion(num_classes: int, use_gpu: bool, args):
-        if args.criterion == 'htri':
-            from modules.abd.torchreid.losses.hard_mine_triplet_loss import TripletLoss
-            criterion = TripletLoss(num_classes, vars(args), use_gpu)
-        elif args.criterion == 'xent':
-            from modules.abd.torchreid.losses.cross_entropy_loss import CrossEntropyLoss
-            criterion = CrossEntropyLoss(num_classes, use_gpu=use_gpu, label_smooth=args.label_smooth)
-        else:
-            raise RuntimeError('Unknown criterion {}'.format(args.criterion))
-
-        return criterion
-
-    def __init__(self):
+    def __init__(self, weights="../pretrained_models/abd/market_checkpoint_best.pth.tar", classes=751):
         self.use_gpu = False
-        self.model = models.init_model(name='resnet50', num_classes=751, loss={'xent'}, use_gpu=self.use_gpu)
+        self.model = models.init_model(name='resnet50', num_classes=classes, loss={'xent'}, use_gpu=self.use_gpu)
 
         try:
-            checkpoint = torch.load(self.checkpointPath)
+            checkpoint = torch.load(weights)
         except Exception as e:
             print(e)
-            checkpoint = torch.load(self.checkpointPath, map_location={'cuda:0': 'cpu'})
+            checkpoint = torch.load(weights, map_location={'cuda:0': 'cpu'})
 
         pretrain_dict = checkpoint['state_dict']
         model_dict = self.model.state_dict()

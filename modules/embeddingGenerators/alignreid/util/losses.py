@@ -1,8 +1,7 @@
 from __future__ import absolute_import
 
-from torch import nn
-
 from modules.alignreid.aligned.local_dist import *
+from torch import nn
 
 """
 Shorthands for loss:

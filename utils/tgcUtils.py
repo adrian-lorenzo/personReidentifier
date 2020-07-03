@@ -1,15 +1,17 @@
+import os
+import re
 from pathlib import Path
+
+import cv2 as cv
 
 from personIdentifier import PersonIdentifier
 from utils.embeddingGenerator import EmbeddingGenerator
+from utils.evaluationUtils import getIds
 from utils.imageUtils import deinterlaceImages
-import cv2 as cv
-import re
-import os
-
 from utils.persistanceUtils import getEmbeddingFromDisk, persistEmbedding
 
 tgcLocations = ["Arucas", "Ayagaures", "ParqueSur", "PresaDeHornos", "Teror"]
+
 
 def getTGCDataset(basePath, ids):
     dataset = {}
@@ -29,12 +31,11 @@ def getTGCDataset(basePath, ids):
 
 
 def saveEmbeddingsTGC():
-    identifier = PersonIdentifier(embeddingGenerator=EmbeddingGenerator.abd)
+    identifier = PersonIdentifier(embeddingGenerator=EmbeddingGenerator.alignedReId)
     basePath = "/Users/adrianlorenzomelian/tfg/datasets/tgc/TGC2020v0.3"
-    embBasePath = "/Users/adrianlorenzomelian/tfg/datasets/tgc/abd_embeddings_all"
+    embBasePath = "/Users/adrianlorenzomelian/tfg/datasets/tgc/trained_alignedreid_embeddings"
+    ids = getIds("/Users/adrianlorenzomelian/tfg/datasets/tgc/TGC2020v0.3/BibsineveryCPs.txt")
 
-    #ids = getIds("/Users/adrianlorenzomelian/tfg/datasets/tgc/TGC2020v0.3/BibsineveryCPs.txt")
-    ids = [int(name) for name in os.listdir(basePath) if os.path.isdir(os.path.join(basePath, name))]
     print(len(ids))
     dataset = getTGCDataset(basePath, ids)
 
@@ -48,9 +49,9 @@ def saveEmbeddingsTGC():
                 persistEmbedding("%s/%d.h5" % (path, num), embedding)
 
 
-def loadEmbeddingsTGC(embPath, ids):
+def loadEmbeddingsDataset(embPath, ids, locations):
     dataset = {}
-    for index, location in enumerate(tgcLocations):
+    for index, location in enumerate(locations):
         embeddings = {}
         for id in ids:
             embeddings[id] = []

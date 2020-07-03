@@ -6,4 +6,3 @@ class Detector(Enum):
     mtcnn = 1
     yolo = 2
     faster = 3
-

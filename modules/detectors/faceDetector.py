@@ -8,7 +8,6 @@ from models.vector import Vector
 
 class FaceDetector():
     interpolationMethod = cv.INTER_AREA
-    paddingMultiplier = 1.05
 
     def __init__(self):
         self.model = MTCNN()

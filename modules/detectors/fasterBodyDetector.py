@@ -1,3 +1,4 @@
+import cv2 as cv
 import numpy as np
 import tensorflow.compat.v1 as tf
 
@@ -7,10 +8,9 @@ from modules.detectors.bodyDetector import BodyDetector
 
 
 class FasterBodyDetector(BodyDetector):
-    path = "../pretrained_models/faster_rcnn_coco/frozen_inference_graph.pb"
 
-    def __init__(self):
-        with tf.gfile.GFile(self.path, "rb") as f:
+    def __init__(self, weights="../pretrained_models/faster_rcnn_coco/frozen_inference_graph.pb"):
+        with tf.gfile.GFile(weights, "rb") as f:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(f.read())
 
@@ -24,12 +24,16 @@ class FasterBodyDetector(BodyDetector):
         self.detectionBoxesTensor = self.graph.get_tensor_by_name('detection_boxes:0')
         self.detectionScoresTensor = self.graph.get_tensor_by_name('detection_scores:0')
 
-    def getBoundingBoxes(self, image, threshold=0.8):
+    def preprocessImage(self, image):
+        image = cv.normalize(image, image, 0, 255, cv.NORM_MINMAX)
+        return image
+
+    def getBoundingBoxes(self, image, threshold=0.7):
         with tf.Session(graph=self.graph) as sess:
             detectionClasses, numDetections, detectionBoxes, detectionScores = sess.run(
                 [self.detectionClassesTensor, self.numDetectionsTensor,
                  self.detectionBoxesTensor, self.detectionScoresTensor],
-                feed_dict={self.inputImage: np.expand_dims(image, axis=0)}
+                feed_dict={self.inputImage: np.expand_dims(self.preprocessImage(image), axis=0)}
             )
 
         boxes = []

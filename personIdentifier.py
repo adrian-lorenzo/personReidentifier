@@ -1,18 +1,18 @@
+from os import path
+
 import cv2 as cv
 
-from os import path
 from models.galleryDatabase import GalleryDatabase
-from modules.embeddingGenerators.abdEmbeddingGenerator import AbdEmbeddingGenerator
 from modules.detectors.faceDetector import FaceDetector
-from modules.embeddingGenerators.alignedReIdEmbeddingGenerator import AlignedReIdEmbeddingGenerator
-from modules.embeddingGenerators.faceEmbeddingGenerator import FaceEmbeddingGenerator
 from modules.detectors.fasterBodyDetector import FasterBodyDetector
 from modules.detectors.maskBodyDetector import MaskBodyDetector
 from modules.detectors.yoloBodyDetector import YoloBodyDetector
+from modules.embeddingGenerators.abdEmbeddingGenerator import AbdEmbeddingGenerator
+from modules.embeddingGenerators.alignedReIdEmbeddingGenerator import AlignedReIdEmbeddingGenerator
+from modules.embeddingGenerators.faceEmbeddingGenerator import FaceEmbeddingGenerator
 from utils.detector import Detector
 from utils.embeddingGenerator import EmbeddingGenerator
 from utils.imageUtils import drawBoundingBox, drawId, drawMask, deinterlaceImages
-from utils.persistanceUtils import persistImage
 
 
 class PersonIdentifier():
@@ -24,7 +24,8 @@ class PersonIdentifier():
     # Window constants
     frameLabel = "Person identifier"
 
-    def __init__(self, detector=Detector.mask, embeddingGenerator=EmbeddingGenerator.alignedReId, detectionThreshold=0.8):
+    def __init__(self, detector=Detector.mask, embeddingGenerator=EmbeddingGenerator.alignedReId,
+                 detectionThreshold=0.8):
         self.faceDetector = FaceDetector()
         self.faceDescriptorGenerator = FaceEmbeddingGenerator()
         self.bodyEmbeddingGenerator = self.selectEmbeddingGenerator(embeddingGenerator)
@@ -32,7 +33,6 @@ class PersonIdentifier():
         self.detector = detector
         self.bodyDetector = self.selectDetector(detector)
         self.detectionThreshold = detectionThreshold
-
 
     def selectDetector(self, detector):
         return {
@@ -42,13 +42,11 @@ class PersonIdentifier():
             Detector.mtcnn: FaceDetector
         }.get(detector, MaskBodyDetector())()
 
-
     def selectEmbeddingGenerator(self, embeddingGenerator):
         return {
-            EmbeddingGenerator.alignedReId : AlignedReIdEmbeddingGenerator,
-            EmbeddingGenerator.abd : AbdEmbeddingGenerator
+            EmbeddingGenerator.alignedReId: AlignedReIdEmbeddingGenerator,
+            EmbeddingGenerator.abd: AbdEmbeddingGenerator
         }.get(embeddingGenerator, AlignedReIdEmbeddingGenerator)()
-
 
     def getAllAlignedFaces(self, frame):
         frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
@@ -56,7 +54,6 @@ class PersonIdentifier():
         if faces is not None:
             return [face.getAlignedFaceImage(frame) for face in faces]
         return None
-
 
     def getAllFaces(self, frame):
         frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
@@ -83,52 +80,48 @@ class PersonIdentifier():
                     frame = drawMask(frame, mask)
         return frame
 
-
     def identifyFaceInFrame(self, frame):
-        frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
+        # frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
         faces = self.faceDetector.getFaces(frame)
         if faces is not None:
             for face in faces:
                 faceImage = face.boundingBox.getImageFromBox(frame)
-                #id = self.galleryDatabase.getIdentity(self.bodyEmbeddingGenerator.getEmbedding(faceImage))
+                # id = self.galleryDatabase.getIdentity(self.bodyEmbeddingGenerator.getEmbedding(faceImage))
                 frame = drawBoundingBox(frame, face.boundingBox)
-                #frame = drawId(frame, id, box)
+                # frame = drawId(frame, id, box)
         return frame
 
+    def detectBodyInFrame(self, frame):
+        frame, boxes = self.bodyDetector.getBoundingBoxes(frame, threshold=self.detectionThreshold)
+        if boxes is not None:
+            for box in boxes:
+                frame = drawBoundingBox(frame, box)
+                frame = drawId(frame, id, box)
+        return frame
 
     def identifyBodyInFrame(self, frame):
-        if self.detector == Detector.yolo:
-            frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
         frame, boxes = self.bodyDetector.getBoundingBoxes(frame, threshold=self.detectionThreshold)
         if boxes is not None:
             for box in boxes:
                 bodyImage = box.getImageFromBox(frame)
-                #id = self.galleryDatabase.getIdentity(self.bodyEmbeddingGenerator.getEmbedding(bodyImage))
+                id = self.galleryDatabase.getIdentity(self.bodyEmbeddingGenerator.getEmbedding(bodyImage))
                 frame = drawBoundingBox(frame, box)
-                #frame = drawId(frame, id, box)
-        return cv.resize(frame, self.presentationDim, interpolation=self.interpolationMethod)
-
+                frame = drawId(frame, id, box)
+        return frame
 
     def startIdentificationByVideo(self, videoPath):
-        pth = "/Users/adrianlorenzomelian/tfg/report/images/detection/yolo"
         if not path.exists(videoPath):
             raise FileNotFoundError("Video path does not exist")
-
         cap = cv.VideoCapture(videoPath)
-        cap.set(cv.CAP_PROP_POS_MSEC, 30000)
-        for i in range(10):
-        #while (cap.isOpened()):
+        cap.set(cv.CAP_PROP_POS_MSEC, 294000)
+        while (cap.isOpened()):
             _, frame = cap.read()
-            #newFrame = deinterlaceImages([frame])[0]
             newFrame = self.identifyBodyInFrame(deinterlaceImages([frame])[0])
-            #newFrame = self.identifyFaceInFrame(deinterlaceImages([frame])[0])
-            persistImage("%s/%d.png" % (pth, i), newFrame)
             cv.imshow(self.frameLabel, newFrame)
             if cv.waitKey(1) & 0xFF == ord('q'):
                 break
         cap.release()
         cv.destroyAllWindows()
-
 
     def startIdentificationByCam(self):
         cap = cv.VideoCapture(0)

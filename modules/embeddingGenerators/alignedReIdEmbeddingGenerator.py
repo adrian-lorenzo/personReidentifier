@@ -21,16 +21,14 @@ def pool2d(tensor, type='max'):
 
 
 class AlignedReIdEmbeddingGenerator(BodyEmbeddingGenerator):
-    modelCheckpointPath = "../pretrained_models/alignreid/checkpoint_ep300.pth.tar"
-    modelCheckpointPath2 = "../pretrained_models/alignreid/checkpoint_ep500.pth.tar"
 
-    def __init__(self):
+    def __init__(self, weights="../pretrained_models/alignreid/checkpoint_ep300.pth.tar", classes=1041):
         os.environ['CUDA_VISIBLE_DEVICES'] = "0"
         self.use_gpu = torch.cuda.is_available()
-        self.model = models.init_model(name='resnet50', num_classes=1041, loss={'softmax', 'metric'},
+        self.model = models.init_model(name='resnet50', num_classes=classes, loss={'softmax', 'metric'},
                                        use_gpu=self.use_gpu, aligned=True)
 
-        checkpoint = torch.load(self.modelCheckpointPath, encoding='latin-1', map_location=torch.device('cpu'))
+        checkpoint = torch.load(weights, encoding='latin-1', map_location=torch.device('cpu'))
         self.model.load_state_dict(checkpoint['state_dict'])
 
         self.img_transform = transforms.Compose([

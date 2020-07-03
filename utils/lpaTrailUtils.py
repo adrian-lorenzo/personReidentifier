@@ -1,11 +1,13 @@
 from pathlib import Path
 
-import numpy as np
 import cv2 as cv
+import numpy as np
 
 from personIdentifier import PersonIdentifier
-from utils.imageUtils import getImages, deinterlaceImages
-from utils.persistanceUtils import persistEmbedding, persistEmbeddingsToDisk, getEmbeddingFromDisk
+from utils.imageUtils import getImagesDataset, deinterlaceImages
+from utils.persistanceUtils import persistEmbedding, persistEmbeddingsToDisk, getEmbeddingFromDisk, persistImage
+
+lpaTrailLocations = ["Jardín Canario", "Casa del Gallo"]
 
 
 def getEmbeddingsFromDisk(personId=1, area=1, basePath="/Users/adrianlorenzomelian/embeddings", numSamples=4):
@@ -16,6 +18,7 @@ def getEmbeddingsFromDisk(personId=1, area=1, basePath="/Users/adrianlorenzomeli
         for i in range(1, numSamples + 1)
     ])
 
+
 def getEmbeddingsFromDiskNoArea(personId=1, basePath="/Users/adrianlorenzomelian/embeddings", numSamples=5):
     return np.array([
         getEmbeddingFromDisk(
@@ -24,17 +27,20 @@ def getEmbeddingsFromDiskNoArea(personId=1, basePath="/Users/adrianlorenzomelian
         for i in range(1, numSamples + 1)
     ])
 
+
 def getSampleImagesNoArea(personId=1, basePath="/Users/adrianlorenzomelian/dataset", numSamples=4):
     return np.array([
         cv.cvtColor(cv.imread("%s/%d/%d.png" % (basePath, personId, i), 1), cv.COLOR_BGR2RGB)
         for i in range(1, numSamples + 1)
     ])
 
+
 def persistEmbeddingsToDiskNoArea(embeddings, personId=1, basePath="/Users/adrianlorenzomelian/embeddings"):
     path = "%s/%d" % (basePath, personId)
     Path(path).mkdir(parents=True, exist_ok=True)
     for index, embedding in enumerate(embeddings):
         persistEmbedding("%s/%d.h5" % (path, index + 1), embedding)
+
 
 def persistImagesToDiskNoArea(images, personId=1, basePath="/Users/adrianlorenzomelian/bodies"):
     path = "%s/%d" % (basePath, personId)
@@ -47,9 +53,20 @@ def saveEmbeddingsDisk():
     identifier = PersonIdentifier()
     for i in range(1, 101):
         for j in range(1, 3):
-            bodies = getImages(personId=i, area=j, basePath="/Users/adrianlorenzomelian/bodies")
+            bodies = getImagesDataset(personId=i, area=j, basePath="/Users/adrianlorenzomelian/bodies")
             persistEmbeddingsToDisk([identifier.getEmbeddingFromBody(body) for body in bodies], personId=i, area=j,
                                     basePath="/Users/adrianlorenzomelian/abd_embeddings")
+
+
+def deinterlaceDataset():
+    for i in range(1, 101):
+        for j in range(1, 3):
+            images = getImagesDataset(personId=i, area=j,
+                                      basePath="/Users/adrianlorenzomelian/tfg/datasets/lpatrail/race_dataset")
+            for x, image in enumerate(deinterlaceImages(images)):
+                persistImage("/Users/adrianlorenzomelian/tfg/datasets/lpatrail/race_dataset_deint/%d/%d" % (i, j),
+                             "%d.png" % (x),
+                             image)
 
 
 def saveEmbeddingsDiskIds(ids):
