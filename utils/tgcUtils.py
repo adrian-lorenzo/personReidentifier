@@ -4,11 +4,11 @@ from pathlib import Path
 
 import cv2 as cv
 
-from personIdentifier import PersonIdentifier
-from utils.embeddingGenerator import EmbeddingGenerator
+from services.personReidentifierService import PersonReidentifierService
+from models.embeddingGenerator import EmbeddingGenerator
 from utils.evaluationUtils import getIds
 from utils.imageUtils import deinterlaceImages
-from utils.persistanceUtils import getEmbeddingFromDisk, persistEmbedding
+from utils.persistanceUtils import persistEmbedding
 
 tgcLocations = ["Arucas", "Ayagaures", "ParqueSur", "PresaDeHornos", "Teror"]
 
@@ -31,7 +31,7 @@ def getTGCDataset(basePath, ids):
 
 
 def saveEmbeddingsTGC():
-    identifier = PersonIdentifier(embeddingGenerator=EmbeddingGenerator.alignedReId)
+    identifier = PersonReidentifierService(embeddingGenerator=EmbeddingGenerator.alignedReId)
     basePath = "/Users/adrianlorenzomelian/tfg/datasets/tgc/TGC2020v0.3"
     embBasePath = "/Users/adrianlorenzomelian/tfg/datasets/tgc/trained_alignedreid_embeddings"
     ids = getIds("/Users/adrianlorenzomelian/tfg/datasets/tgc/TGC2020v0.3/BibsineveryCPs.txt")
@@ -47,20 +47,3 @@ def saveEmbeddingsTGC():
             embeddings = [identifier.getEmbeddingFromBody(image) for image in dataset[location][id]]
             for num, embedding in enumerate(embeddings):
                 persistEmbedding("%s/%d.h5" % (path, num), embedding)
-
-
-def loadEmbeddingsDataset(embPath, ids, locations):
-    dataset = {}
-    for index, location in enumerate(locations):
-        embeddings = {}
-        for id in ids:
-            embeddings[id] = []
-            path = "%s/%d/%d" % (embPath, id, index)
-            for filename in os.listdir(path):
-                embeddings[id].append(
-                    getEmbeddingFromDisk(
-                        "%s/%s" % (path, filename)
-                    )
-                )
-        dataset[location] = embeddings
-    return dataset

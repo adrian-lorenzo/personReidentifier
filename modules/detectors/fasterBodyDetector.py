@@ -9,7 +9,10 @@ from modules.detectors.bodyDetector import BodyDetector
 
 class FasterBodyDetector(BodyDetector):
 
-    def __init__(self, weights="../pretrained_models/faster_rcnn_coco/frozen_inference_graph.pb"):
+    def __init__(self, weights="../pretrained_models/faster_rcnn_coco/frozen_inference_graph.pb",
+                 modelConf=None):
+
+        self.modelConf = modelConf
         with tf.gfile.GFile(weights, "rb") as f:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(f.read())

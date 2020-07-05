@@ -4,8 +4,9 @@ from models.gallery import Gallery
 
 
 class GalleryDatabase():
-    def __init__(self, database={}, threshold=1.5):
+    def __init__(self, database={}, maxDescriptors=None, threshold=None):
         self.database = database
+        self.maxDescriptors = maxDescriptors
         self.threshold = threshold
         self.count = 0
 
@@ -27,6 +28,7 @@ class GalleryDatabase():
         self.database = {}
 
     def getIdentity(self, descriptor):
+        if descriptor is None: return -1
         distance = []
         for gallId in self.database:
             dists = []
@@ -39,13 +41,12 @@ class GalleryDatabase():
             )
 
         if not distance:
-            return self.addNewGallery(Gallery([descriptor], maxDescriptors=20))
+            return self.addNewGallery(Gallery([descriptor], maxDescriptors=self.maxDescriptors))
 
         bestId, minDistance = min(distance, key=lambda v: v[1])
 
-        if minDistance < self.threshold:
-            print("Min distance: ", minDistance, " - Threshold: ", self.threshold)
+        if self.threshold is None or minDistance < self.threshold:
             self.addToGallery(bestId, descriptor)
             return bestId
         else:
-            return self.addNewGallery(Gallery([descriptor], maxDescriptors=20))
+            return self.addNewGallery(Gallery([descriptor], maxDescriptors=self.maxDescriptors))

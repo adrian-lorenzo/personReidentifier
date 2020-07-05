@@ -3,7 +3,7 @@ from pathlib import Path
 import cv2 as cv
 import numpy as np
 
-from personIdentifier import PersonIdentifier
+from services.personReidentifierService import PersonReidentifierService
 from utils.imageUtils import getImagesDataset, deinterlaceImages
 from utils.persistanceUtils import persistEmbedding, persistEmbeddingsToDisk, getEmbeddingFromDisk, persistImage
 
@@ -50,7 +50,7 @@ def persistImagesToDiskNoArea(images, personId=1, basePath="/Users/adrianlorenzo
 
 
 def saveEmbeddingsDisk():
-    identifier = PersonIdentifier()
+    identifier = PersonReidentifierService()
     for i in range(1, 101):
         for j in range(1, 3):
             bodies = getImagesDataset(personId=i, area=j, basePath="/Users/adrianlorenzomelian/bodies")
@@ -70,7 +70,7 @@ def deinterlaceDataset():
 
 
 def saveEmbeddingsDiskIds(ids):
-    identifier = PersonIdentifier()
+    identifier = PersonReidentifierService()
     for id in ids:
         bodies = deinterlaceImages(
             getSampleImagesNoArea(personId=id, basePath="/Users/adrianlorenzomelian/test-datasets/new-test-bodies",

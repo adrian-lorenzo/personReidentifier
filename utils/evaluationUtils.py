@@ -3,33 +3,54 @@ from os import path
 import matplotlib.pyplot as plt
 import numpy as np
 
-defaultWindowSize = 20
-defaultShiftProp = .3
+from utils.debugUtils import printv, printDone
+
+defaultWindowSize = 30
+defaultShiftProp = .1
 defaultShiftStep = 1
-defaultFps = 3
-defaultTimeout = 10
+defaultFps = 5.
+defaultTimeout = 10.
 
 
-def plotCMC(result, ids):
+def plotCMC(result):
+    """
+    Plots the given CMC curve result.
+    """
+    printv("Plotting the CMC curve...", False)
     plt.figure(figsize=(9, 9))
-    plt.plot(ids, result)
+    top = range(1, len(result)+1)
+    plt.plot(top, result)
     plt.yticks(np.arange(0, 1.05, 0.05))
-    plt.xticks(ids)
+    plt.xticks(top)
     plt.xlabel("Ranks")
     plt.ylabel("Probability")
     plt.title("CMC curve")
     plt.grid()
     plt.show()
+    printDone()
 
 
 def rankIds(gallery, embedding, possibleIds):
+    """
+    Ranks a set of given ids of a given gallery by the mininum difference
+    of their embedding samples with a given embedding.
+
+    Arguments:
+        gallery -- the gallery set of embeddings.
+        embedding -- the selected embedding.
+        possibleIds -- the possible ids to be choosen.
+
+    Returns:
+        The CMC curve in a list.
+    """
+
     ranking = [
         [
             gallId,
-            # Se obtiene el valor mínimo
+            # The minimum value is obtained
             np.amin([
-                # Diferencia de distancias del embedding
-                # seleccionado con los posibles de la galería
+                # Distance difference of the selected embedding with
+                # the gallery possible ones
                 np.linalg.norm(embedding - gallEmbedding)
                 for gallEmbedding in gallery[gallId]
             ])
@@ -43,32 +64,62 @@ def rankIds(gallery, embedding, possibleIds):
 
 
 def cmc(gallery, query, topNum):
+    """
+    Calculates the CMC curve.
+
+    Arguments:
+        gallery -- the gallery set of embeddings.
+        query -- the query set of embeddings.
+        topNum -- the top size.
+
+    Returns:
+        The CMC curve in a list.
+    """
+
+    printv("Calculating CMC curve...")
     embeddingCount = 0
     matches = np.zeros(topNum)
 
-    # Por cada identidad de la consulta,
-    # iteramos por cada espacio embebido
+    # For each query identity, we iterate
+    # for each embedding.
     for id in query:
         for embedding in query[id]:
-            # Obtenemos el ranking
+            # We obtain the ranking
             ranking = rankIds(gallery, embedding, gallery.keys())
 
-            # Evaluamos la clasificación obtenida
+            # Evaluates the given ranking
             for rank in range(0, topNum):
                 if ranking[rank][0] == id:
                     matches[rank] += 1
                     break
             embeddingCount += 1
 
-    # Obtenemos la precisión acumulada
+    # Obtains the accumulated probability
     results = np.cumsum(matches) / embeddingCount
     print(results)
-    print(matches)
+    printDone()
     return matches, results
 
 
 def cmcTimeHeuristic(gallery, query, topNum, raceRank, windowSize=defaultWindowSize, shiftProp=defaultShiftProp,
                      shiftStep=defaultShiftStep):
+    """
+    Calculates the CMC curve using time heuristic.
+
+    Arguments:
+        gallery -- the gallery set of embeddings.
+        query -- the query set of embeddings.
+        topNum -- the top size.
+        raceRank -- the previous checkpoint rank.
+        windowSize -- the size of the window for time heuristic.
+        shiftProp -- the position difference proportion to consider shifting for time heuristic.
+        shiftStep -- the size of the step for time heuristic.
+
+    Returns:
+        The CMC curve in a list.
+    """
+
+    printv("Calculating CMC curve with time heuristic...")
     embeddingCount = 0
     windowStart = 0
 
@@ -76,44 +127,59 @@ def cmcTimeHeuristic(gallery, query, topNum, raceRank, windowSize=defaultWindowS
 
     matches = np.zeros(topNum)
 
-    # Por cada identidad de la consulta,
-    # iteramos por cada espacio embebido
+    # For each query identity, we iterate
+    # for each embedding.
     for id in query:
         for embedding in query[id]:
-            # Obtenemos las posiciones del ranking que
-            # se utilizarán en esta iteración
+            # Obtains the ranking position that will be
+            # used in this iteration
             windowPositions = list(range(
                 max(windowStart - windowSize, 0),
                 min(windowStart + windowSize + 1, len(raceRank))
             ))
 
-            # Obtenemos las ids de esas posiciones
+            # Obtains the ids of each positions
             possibleIds = [raceRank[position] for position in windowPositions]
 
-            # Obtenemos el ranking
+            # Obtains the ranking
             ranking = rankIds(gallery, embedding, possibleIds)
 
-            # Si la clasificación anterior era mayor a la posición
-            # de la ventana más el tamaño para desplazar,
-            # se desplaza la ventana
+            # If the previous id rank was lower than the window
+            # position plus the shift size, the window shifts
             if raceRank.index(ranking[0][0]) > (windowStart + shiftSize):
                 windowStart += shiftStep
 
-            # Evaluamos la clasificación obtenida
+            # Evaluates the obtained rank
             for rank in range(0, topNum):
                 if ranking[rank][0] == id:
                     matches[rank] += 1
                     break
             embeddingCount += 1
 
-    # Obtenemos la precisión acumulada
+    # Obtains the accumulated probability
     results = np.cumsum(matches) / embeddingCount
     print(results)
-    print(matches)
+    printDone()
     return matches, results
 
 
 def cmcSpaceHeuristic(gallery, query, topNum, raceRank, fps=defaultFps, timeout=defaultTimeout):
+    """
+    Calculates the CMC curve using space heuristic.
+
+    Arguments:
+        gallery -- the gallery set of embeddings.
+        query -- the query set of embeddings.
+        topNum -- the top size.
+        raceRank -- the previous checkpoint rank.
+        fps -- the image feeder frame per second value for space heuristic.
+        timeout -- the amount time elapsed to consider an identity as not possible for space heuristic.
+
+    Returns:
+        The CMC curve in a list.
+    """
+
+    printv("Calculating CMC curve with space heuristic...")
     embeddingCount = 0
     matches = np.zeros(topNum)
     ids = list(gallery.keys())
@@ -121,12 +187,12 @@ def cmcSpaceHeuristic(gallery, query, topNum, raceRank, fps=defaultFps, timeout=
     seenDict = {}
     idCounter = 0
 
-    # Por cada identidad de la consulta,
-    # iteramos por cada espacio embebido
+    # For each query identity, we iterate
+    # for each embedding.
     for id in query:
         for embedding in query[id]:
-            # Se filtran aquellas identidades ya vistas
-            # con timeout a 0.
+            # Seen identities with 0-value timeout
+            # get filtered.
             possibleIds = filter(
                 lambda id: id not in list(seenDict.keys()) or seenDict[id] > 0.,
                 ids
@@ -134,39 +200,55 @@ def cmcSpaceHeuristic(gallery, query, topNum, raceRank, fps=defaultFps, timeout=
 
             ranking = rankIds(gallery, embedding, possibleIds)
 
-            # Ordenamos las distancias de menor a mayor
-            ranking.sort(key=lambda v: v[1])
-
             if ranking[0][0] not in seenDict.keys():
                 idCounter += 1
 
-            # Se restablece la cuenta atrás del ganador
+            # Winner timeout is reset
             seenDict[ranking[0][0]] = timeout + (
                     timeout * max(raceRank.index(ranking[0][0]) - idCounter, 0)
             )
 
-            # Se reduce el contador de los ya vistos
+            # Seen identities counter gets updated
             for seenId in seenDict.keys():
                 if seenId != ranking[0][0]:
                     seenDict[seenId] = max(seenDict[seenId] - (1. / fps), 0)
 
-            # Evaluamos la clasificación obtenida
+            # Evaluates the obtained rank
             for rank in range(0, min(topNum, len(ranking))):
                 if ranking[rank][0] == id:
                     matches[rank] += 1
                     break
             embeddingCount += 1
 
-    # Obtenemos la precisión acumulada
+    # Obtains the accumulated probability
     results = np.cumsum(matches) / embeddingCount
     print(results)
-    print(matches)
+    printDone()
     return matches, results
 
 
 def cmcTimeSpaceHeuristic(gallery, query, topNum, raceRank,
                           windowSize=defaultWindowSize, shiftProp=defaultShiftProp, shiftStep=defaultShiftStep,
                           fps=defaultFps, timeout=defaultTimeout):
+    """
+    Calculates the CMC curve using time and space heuristic.
+
+    Arguments:
+        gallery -- the gallery set of embeddings.
+        query -- the query set of embeddings.
+        topNum -- the top size.
+        raceRank -- the previous checkpoint rank.
+        windowSize -- the size of the window for time heuristic.
+        shiftProp -- the position difference proportion to consider shifting for time heuristic.
+        shiftStep -- the size of the step for time heuristic.
+        fps -- the image feeder frame per second value for space heuristic.
+        timeout -- the amount time elapsed to consider an identity as not possible for space heuristic.
+
+    Returns:
+        The CMC curve in a list.
+    """
+
+    print("Calculating CMC curve with time and space heuristic...")
     embeddingCount = 0
     matches = np.zeros(topNum)
 
@@ -176,19 +258,19 @@ def cmcTimeSpaceHeuristic(gallery, query, topNum, raceRank,
     idCounter = 0
     seenDict = {}
 
-    # Por cada identidad de la consulta,
-    # iteramos por cada espacio embebido
+    # For each query identity, we iterate
+    # for each embedding.
     for id in query:
         for embedding in query[id]:
-            # Obtenemos las posiciones del ranking que
-            # se utilizarán en esta iteración
+            # Obtains the ranking position that will be
+            # used in this iteration
             windowPositions = list(range(
                 windowStart,
                 min(windowStart + windowSize, len(gallery))
             ))
 
-            # Se añaden las posiciones de la clasificación, eliminando
-            # las que ya han aparecido con cuenta atrás finalizada
+            # Obtains the ids of each ranking positions, removing
+            # the ones that have been seen with timeout 0
             possibleIds = set(
                 [raceRank[position] for position in windowPositions]
             ).union(
@@ -197,44 +279,51 @@ def cmcTimeSpaceHeuristic(gallery, query, topNum, raceRank,
 
             ranking = rankIds(gallery, embedding, possibleIds)
 
-            # Ordenamos las distancias de menor a mayor
-            ranking.sort(key=lambda v: v[1])
-
-            # Si la clasificación anterior era mayor a la posición
-            # de la ventana más el tamaño para desplazar,
-            # se desplaza la ventana
+            # If the previous id rank was lower than the window
+            # position plus the shift size, the window shifts
             if ranking[0][0] not in seenDict.keys():
                 if raceRank.index(ranking[0][0]) > (windowStart + shiftSize):
                     windowStart += shiftStep
                 idCounter += 1
 
-            # Se restablece la cuenta atrás del ganador
+            # Winner timeout is reset
             seenDict[ranking[0][0]] = timeout + (
                     timeout * max(raceRank.index(ranking[0][0]) - idCounter, 0)
             )
 
-            # Se reduce el contador de los ya vistos
+            # Seen identities counter gets updated
             for i in seenDict.keys():
                 if i != ranking[0][0] and seenDict[i] != 0:
                     seenDict[i] = max(seenDict[i] - 1 / fps, 0)
 
-            # Evaluamos la clasificación obtenida
+            # Evaluates the obtained rank
             for rank in range(0, min(topNum, len(ranking))):
                 if ranking[rank][0] == id:
                     matches[rank] += 1
                     break
             embeddingCount += 1
 
-    # Obtenemos la precisión acumulada
+    # Obtains the accumulated probability
     results = np.cumsum(matches) / embeddingCount
     print(results)
-    print(matches)
+    printDone()
     return matches, results
 
 
-def getIds(fileName):
-    if not path.exists(fileName):
+def getIds(filePath):
+    """
+    Gets ids from file.
+    The ids must be formatted as one per row.
+
+    Arguments:
+        fileName -- the file string with the ids.
+
+    Returns:
+        The id list.
+    """
+
+    if not path.exists(filePath):
         FileNotFoundError("Ids file not exists")
 
-    with open(fileName) as file:
+    with open(filePath) as file:
         return [int(line) for line in file]

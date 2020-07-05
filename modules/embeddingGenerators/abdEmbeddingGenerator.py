@@ -10,23 +10,21 @@ from PIL import Image
 from torchvision import transforms
 
 from modules.embeddingGenerators.abd.torchreid import models
-from modules.embeddingGenerators.alignreid.util.utils import img_to_tensor
+from modules.embeddingGenerators.alignedreid.util.utils import img_to_tensor
 from modules.embeddingGenerators.bodyEmbeddingGenerator import BodyEmbeddingGenerator
 
 logging.basicConfig(level=os.environ.get('LOGLEVEL', 'CRITICAL'))
-
 os.environ['TORCH_HOME'] = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.torch'))
 
 
 class AbdEmbeddingGenerator(BodyEmbeddingGenerator):
     def __init__(self, weights="../pretrained_models/abd/market_checkpoint_best.pth.tar", classes=751):
-        self.use_gpu = False
+        self.use_gpu = torch.cuda.is_available()
         self.model = models.init_model(name='resnet50', num_classes=classes, loss={'xent'}, use_gpu=self.use_gpu)
 
         try:
             checkpoint = torch.load(weights)
-        except Exception as e:
-            print(e)
+        except Exception as _:
             checkpoint = torch.load(weights, map_location={'cuda:0': 'cpu'})
 
         pretrain_dict = checkpoint['state_dict']

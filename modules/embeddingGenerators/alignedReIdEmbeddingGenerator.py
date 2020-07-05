@@ -1,9 +1,9 @@
 from sklearn.preprocessing import normalize
 from torchvision import transforms
 
-import modules.embeddingGenerators.alignreid.models as models
-from modules.embeddingGenerators.alignreid.util.FeatureExtractor import FeatureExtractor
-from modules.embeddingGenerators.alignreid.util.utils import *
+import modules.embeddingGenerators.alignedreid.models as models
+from modules.embeddingGenerators.alignedreid.util.FeatureExtractor import FeatureExtractor
+from modules.embeddingGenerators.alignedreid.util.utils import *
 from modules.embeddingGenerators.bodyEmbeddingGenerator import BodyEmbeddingGenerator
 
 
@@ -22,7 +22,7 @@ def pool2d(tensor, type='max'):
 
 class AlignedReIdEmbeddingGenerator(BodyEmbeddingGenerator):
 
-    def __init__(self, weights="../pretrained_models/alignreid/checkpoint_ep300.pth.tar", classes=1041):
+    def __init__(self, weights="../pretrained_models/alignedreid/checkpoint_ep300.pth.tar", classes=1041):
         os.environ['CUDA_VISIBLE_DEVICES'] = "0"
         self.use_gpu = torch.cuda.is_available()
         self.model = models.init_model(name='resnet50', num_classes=classes, loss={'softmax', 'metric'},

@@ -8,9 +8,9 @@ class BoundingBox:
 
     def getImageFromBox(self, frame):
         return frame[
-               self.origin.y: self.end.y,
-               self.origin.x: self.end.x
-               ]
+           max(self.origin.y, 0): min(self.end.y, frame.shape[0]),
+           max(self.origin.x, 0): min(self.end.x, frame.shape[1])
+        ]
 
     def __str__(self):
         return "Origin: " + str(self.origin) + "- End: " + str(self.end)

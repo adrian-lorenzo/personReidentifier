@@ -5,7 +5,7 @@ import torchvision
 from torch import nn
 from torch.nn import functional as F
 
-from modules.embeddingGenerators.alignreid.aligned.HorizontalMaxPool2D import HorizontalMaxPool2d
+from modules.embeddingGenerators.alignedreid.aligned.HorizontalMaxPool2D import HorizontalMaxPool2d
 
 __all__ = ['DenseNet121']
 

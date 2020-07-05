@@ -20,7 +20,9 @@ class InferenceConfig(Config):
 class MaskBodyDetector(BodyDetector):
 
     def __init__(self, weights="../pretrained_models/mask_rcnn_coco/mask_rcnn_coco.h5",
-                 modelConf="../pretrained_models/mask_rcnn_coco/logs"):
+                 modelConf="../.logs"):
+        if modelConf is None:
+            modelConf = "../.logs"
         if not os.path.exists(weights):
             utils.download_trained_weights(weights)
         config = InferenceConfig()

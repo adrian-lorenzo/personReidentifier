@@ -1,7 +1,12 @@
 import cv2 as cv
 import numpy as np
-import tensorflow as tf
 
+import os
+import sys
+stdout = sys.stdout
+sys.stdout = open(os.devnull, 'w')
+import tensorflow as tf
+sys.stdout = stdout
 
 class FaceEmbeddingGenerator():
     inputDim = (160, 160)

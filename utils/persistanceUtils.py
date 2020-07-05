@@ -7,13 +7,6 @@ import h5py
 embeddingDatasetName = 'embedding'
 
 
-def persistEmbeddingsToDisk(embeddings, personId=1, area=1, basePath="/Users/adrianlorenzomelian/embeddings"):
-    path = "%s/%d/%d" % (basePath, personId, area)
-    Path(path).mkdir(parents=True, exist_ok=True)
-    for index, embedding in enumerate(embeddings):
-        persistEmbedding("%s/%d.h5" % (path, index + 1), embedding)
-
-
 def persistEmbedding(path, embedding):
     h5f = h5py.File(path, 'w')
     h5f.create_dataset(embeddingDatasetName, data=embedding)
@@ -26,6 +19,13 @@ def getEmbeddingFromDisk(path):
     h5f.close()
 
     return embedding
+
+
+def persistEmbeddingsToDisk(embeddings, personId, area, basePath):
+    path = "%s/%d/%d" % (basePath, personId, area)
+    Path(path).mkdir(parents=True, exist_ok=True)
+    for index, embedding in enumerate(embeddings):
+        persistEmbedding("%s/%d.h5" % (path, index + 1), embedding)
 
 
 def loadEmbeddingsDataset(embPath, ids, locations, oneIndexed=False):
@@ -58,8 +58,7 @@ def loadEmbeddings(embPath, ids, location, oneIndexed=False):
                     "%s/%s" % (path, filename)
                 )
             )
-        dataset = embeddings
-    return dataset
+    return embeddings
 
 
 def persistImage(path, name, image):
@@ -68,7 +67,7 @@ def persistImage(path, name, image):
 
 
 def loadImage(path):
-    cv.cvtColor(cv.imread(path, 1), cv.COLOR_BGR2RGB)
+    return cv.imread(path, 1)
 
 
 def getImagesDataset(basePath, ids, locations, oneIndexed=False):
