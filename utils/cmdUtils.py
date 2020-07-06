@@ -1,5 +1,6 @@
 from os import path
 
+from models.gallery import Gallery
 from services.personReidentifierService import PersonReidentifierService
 from models.detector import Detector
 from models.embeddingGenerator import EmbeddingGenerator
@@ -89,6 +90,7 @@ def buildPersonIdentifier(args):
 
         ids = getIds(args.ids)
         gallery = loadEmbeddings(args.gallery, ids, args.galleryLocation, args.oneIndexed)
+        gallery = { id: Gallery(embeddings) for id, embeddings in gallery.items() }
 
         if args.galleryLocation is None:
             raise ValueError("No query location specified. It should be specified with --galleryLocation option.")

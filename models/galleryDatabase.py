@@ -45,8 +45,11 @@ class GalleryDatabase():
 
         bestId, minDistance = min(distance, key=lambda v: v[1])
 
-        if self.threshold is None or minDistance < self.threshold:
-            self.addToGallery(bestId, descriptor)
-            return bestId
+        if self.threshold is not None:
+            if minDistance < self.threshold:
+                self.addToGallery(bestId, descriptor)
+                return bestId
+            else:
+                return self.addNewGallery(Gallery([descriptor], maxDescriptors=self.maxDescriptors))
         else:
-            return self.addNewGallery(Gallery([descriptor], maxDescriptors=self.maxDescriptors))
+            return bestId
