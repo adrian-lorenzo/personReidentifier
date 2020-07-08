@@ -1,7 +1,7 @@
 # Person Reidentifier
 
 **Implementation with Command Line Interface of the work done for my degree final project `"Appereance and context information combination 
-for re-identificaton in sports competitions"`** (`"Combinación de apariencia e información de contexto para la re-identificación en competiciones deportivas").
+for re-identificaton in sports competitions"`** (`"Combinación de apariencia e información de contexto para la re-identificación en competiciones deportivas"`).
 
 With this implementation you can:
 
