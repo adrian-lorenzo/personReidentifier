@@ -1,6 +1,6 @@
 # Person Reidentifier
 
-**Implementation with CLI interface of the work done for my degree final project `"Appereance and context information combination 
+**Implementation with Command Line Interface of the work done for my degree final project `"Appereance and context information combination 
 for re-identificaton in sports competitions"`** (`"Combinación de apariencia e información de contexto para la re-identificación en competiciones deportivas").
 
 With this implementation you can:
@@ -8,7 +8,7 @@ With this implementation you can:
 * Run the studied body detectors and **get the body images or bounding boxes of the bodies in a given image.**
 * **Generate a representative embedding from a body image** using studied body embedding generators.
 * **Compute the CMC curve of a given gallery set and query set, using one of the proposed heuristics.**
-* **Test the whole system from a video feed, using a given gallery or query set.**
+* **Test the whole system from a video feed, using a specified gallery set.**
 
 ## Requirements
 
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 Then you can use it by executing the `personIdentifier.py` script:
 
 ```shell
-./personIdentifier.py
+./personReidentifier.py
 ```
 
 ## CLI interface manual
@@ -86,7 +86,7 @@ Dataset must follow the next structure:
   Root
   |
   |
-  |     Id
+  |     Identity
   |--   0
   |     |
   |     |   
@@ -161,18 +161,18 @@ Dataset must follow the next structure:
 | `--video` `video_path` | Runs system with specified video file. |
 | `--camera` | Runs system using system camera. |
 
-##### Open world assumption parameters (experimental)
+##### Open set based problem parameters (experimental)
 
 This features has not been tested and were implemented for experimental intentions only. Further work in this area can be made, as told in the project report.
 
 | Option | Description |
 |---|---|
-| `--openWorldThreshold` `float` | The minimum value to consider an identity as equal as one in the gallery, used in the open world assumption. |
+| `--openWorldThreshold` `float` | The minimum value to consider an identity as equal as one in the gallery. |
 | `--maxDescriptors` `integer` | The maximum number of descriptors per gallery. |
                                  
 ## Credits:
 
-### Models
+### Models and pretrained weights
 
 * [MaskRCNN implementation and pre-trained weights.](https://github.com/matterport/Mask_RCNN)
 * [FasterRCNN frozen graph and weights.](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md)
