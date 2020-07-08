@@ -22,10 +22,13 @@ if __name__ == '__main__':
             identifier.startIdentificationByCam()
         elif args.embedding is not None:
             checkPath(args.embedding, "Body image", True)
+            if args.mtcnn:
+                raise ValueError(
+                    "You can't generate an embedding using MTCNN. Please, use a body detector and a body embedding generator.")
             body = loadImage(args.embedding)
             embedding = identifier.getEmbeddingFromBody(body)
             if args.savePath is None:
-                FileNotFoundError("Save path is missing. You can set it using --savePath option")
+                raise FileNotFoundError("Save path is missing. You can set it using --savePath option.")
             printv("Saving embedding at %s" % (args.savePath))
             persistEmbedding(args.savePath, embedding)
         elif args.detection is not None:
@@ -50,5 +53,4 @@ if __name__ == '__main__':
                         img
                     )
 
-
-    printv("Task finished 🚀. Elapsed time: %s seconds." % (time.time() - startTime))
+    printv("Task finished 🚀. Time elapsed: %s seconds." % (time.time() - startTime))

@@ -14,13 +14,6 @@ fontColor = (0, 255, 0)
 lineType = 2
 
 
-def getImagesDataset(personId=1, area=1, basePath="/Users/adrianlorenzomelian/dataset", numSamples=4):
-    return np.array([
-        cv.cvtColor(cv.imread("%s/%d/%d/%d.png" % (basePath, personId, area, i), 1), cv.COLOR_BGR2RGB)
-        for i in range(1, numSamples + 1)
-    ])
-
-
 def deinterlaceImages(images, numpy=True):
     deinterlaced = []
     for image in images:

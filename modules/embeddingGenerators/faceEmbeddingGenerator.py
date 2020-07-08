@@ -9,6 +9,11 @@ import tensorflow as tf
 sys.stdout = stdout
 
 class FaceEmbeddingGenerator():
+    """
+    WARNING - DEPRECATED!: This is a FaceNet implementation done to experiment with MTCNN.
+    It is deprecated and not used in the current CLI implementation.
+    It can be taken as reference to start working on face embedding generation.
+    """
     inputDim = (160, 160)
     interpolationMethod = cv.INTER_AREA
     modelLocation = '../pretrained_models/facenet/facenet_keras.h5'

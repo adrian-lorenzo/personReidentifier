@@ -46,7 +46,6 @@ class PersonReidentifierService():
 
         if detector is Detector.mtcnn:
             self.faceDetector = FaceDetector()
-            self.faceEmbeddingGenerator = FaceEmbeddingGenerator()
         else:
             self.bodyEmbeddingGenerator = self.selectEmbeddingGenerator(
                 embeddingGenerator,
@@ -115,17 +114,6 @@ class PersonReidentifierService():
                     frame = drawMask(frame, mask)
         return frame
 
-    def identifyFaceInFrame(self, frame):
-        frame = cv.resize(frame, self.inputDim, interpolation=self.interpolationMethod)
-        faces = self.faceDetector.getFaces(frame)
-        if faces is not None:
-            for face in faces:
-                faceImage = face.boundingBox.getImageFromBox(frame)
-                id = self.galleryDatabase.getIdentity(self.bodyEmbeddingGenerator.getEmbedding(faceImage))
-                frame = drawBoundingBox(frame, face.boundingBox)
-                frame = drawId(frame, id, face.boundingBox)
-        return frame
-
     def detectBodiesInFrame(self, frame):
         frame, boxes = self.bodyDetector.getBoundingBoxes(frame, threshold=self.detectionThreshold)
         if boxes is not None:
@@ -154,7 +142,9 @@ class PersonReidentifierService():
         printv("Starting identification by video...")
         if not path.exists(videoPath):
             raise FileNotFoundError("Video path does not exist")
-        identify = self.identifyFaceInFrame if self.detector is Detector.mtcnn else self.identifyBodyInFrame
+        identify = self.detectFacesInFrame if self.detector is Detector.mtcnn else self.identifyBodyInFrame
+        if self.detector is Detector.mtcnn:
+            printv("WARNING: You are using MTCNN. Identity will not be computed. Use a body detector if you want to compute the identity.")
         cap = cv.VideoCapture(videoPath)
         printv("⚡️ Identification by video started, use key 'q' to quit the process.")
         while (cap.isOpened()):
@@ -169,8 +159,10 @@ class PersonReidentifierService():
 
     def startIdentificationByCam(self):
         printv("Starting identification using webcam...")
-        identify = self.identifyFaceInFrame if self.detector is Detector.mtcnn else self.identifyBodyInFrame
+        identify = self.detectFacesInFrame if self.detector is Detector.mtcnn else self.identifyBodyInFrame
         cap = cv.VideoCapture(0)
+        if self.detector is Detector.mtcnn:
+            printv("WARNING: You are using MTCNN. Identity will not be computed. Use a body detector if you want to compute the identity.")
         printv("⚡️ Identification using webcam started, use key 'q' to quit the process.")
         while True:
             _, frame = cap.read()
